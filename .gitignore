@@ -1,0 +1,7 @@
+.env
+data/todos.json
+data/memory.json
+data/conversation.json
+__pycache__/
+*.pyc
+*.pyo
