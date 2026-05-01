@@ -2,7 +2,6 @@
 Voice I/O — microphone recording, Groq Whisper STT, pyttsx3 TTS.
 """
 import tempfile
-import threading
 from pathlib import Path
 
 import numpy as np
