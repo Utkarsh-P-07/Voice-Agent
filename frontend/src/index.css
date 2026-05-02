@@ -102,6 +102,8 @@
   }
   .nav-item:hover { @apply text-white; background: rgba(255,255,255,0.05); }
   .nav-item.active { @apply text-white; }
+  /* Sidebar popup hover */
+  .hover\:bg-white\/8:hover { background: rgba(255,255,255,0.08); }
 
   /* ── Priority pill ───────────────────────────────────────────────────── */
   .pill {

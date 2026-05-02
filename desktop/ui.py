@@ -5,11 +5,9 @@ Voice Todo Agent — Full Dashboard UI (tkinter desktop)
 Run:   python desktop/ui.py
 """
 import json
-import math
 import os
 import sys
 import threading
-import time
 import tkinter as tk
 from datetime import datetime
 from pathlib import Path
@@ -30,7 +28,6 @@ SIDEBAR_BG    = "#252525"
 SIDEBAR_HOVER = "#333333"
 SIDEBAR_SEL   = "#2e2e2e"
 ACCENT        = "#e05c3a"
-ACCENT2       = "#f07050"
 MAIN_BG       = "#f2f2f2"
 CARD_BG       = "#ffffff"
 CARD_BORDER   = "#e8e8e8"

@@ -67,7 +67,6 @@ def run_agent_turn(client: Groq, conversation: list[dict], user_text: str) -> st
             # Groq returns 400 when the model generates malformed tool call JSON
             if "tool_use_failed" in str(e) and retry_count < max_retries:
                 retry_count += 1
-                print(f"  ⚠️  Malformed tool call, retrying ({retry_count}/{max_retries})...")
                 messages.append({
                     "role": "user",
                     "content": "Please try again, making sure to call the right tool with valid JSON arguments.",
@@ -85,7 +84,6 @@ def run_agent_turn(client: Groq, conversation: list[dict], user_text: str) -> st
             )
             if bad_call and retry_count < max_retries:
                 retry_count += 1
-                print(f"  ⚠️  Invalid tool arguments, retrying ({retry_count}/{max_retries})...")
                 messages.append({
                     "role": "user",
                     "content": "Please try again with valid JSON arguments for the tool call.",
@@ -110,9 +108,7 @@ def run_agent_turn(client: Groq, conversation: list[dict], user_text: str) -> st
             for tool_call in message.tool_calls:
                 name = tool_call.function.name
                 arguments = tool_call.function.arguments
-                print(f"  🔧 Tool: {name}({arguments})")
                 result = dispatch_tool(name, arguments)
-                print(f"  📦 Result: {result}")
 
                 tool_msg = {
                     "role": "tool",

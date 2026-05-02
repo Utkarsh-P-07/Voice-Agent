@@ -7,6 +7,8 @@ import SignUp from './pages/auth/SignUp'
 import OAuthCallback from './pages/auth/OAuthCallback'
 import Dashboard from './pages/Dashboard'
 import Todos from './pages/Todos'
+import Calendar from './pages/Calendar'
+import Categories from './pages/Categories'
 import Memory from './pages/Memory'
 import Stats from './pages/Stats'
 import Profile from './pages/Profile'
@@ -17,9 +19,9 @@ export default function App() {
     <AuthProvider>
       <Routes>
         {/* Public auth routes */}
-        <Route path="/signin"         element={<SignIn />} />
-        <Route path="/signup"         element={<SignUp />} />
-        <Route path="/auth/callback"  element={<OAuthCallback />} />
+        <Route path="/signin"        element={<SignIn />} />
+        <Route path="/signup"        element={<SignUp />} />
+        <Route path="/auth/callback" element={<OAuthCallback />} />
 
         {/* Protected app routes */}
         <Route path="/" element={
@@ -28,12 +30,14 @@ export default function App() {
           </ProtectedRoute>
         }>
           <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="todos"     element={<Todos />} />
-          <Route path="memory"    element={<Memory />} />
-          <Route path="stats"     element={<Stats />} />
-          <Route path="profile"   element={<Profile />} />
-          <Route path="settings"  element={<Settings />} />
+          <Route path="dashboard"  element={<Dashboard />} />
+          <Route path="todos"      element={<Todos />} />
+          <Route path="calendar"   element={<Calendar />} />
+          <Route path="categories" element={<Categories />} />
+          <Route path="memory"     element={<Memory />} />
+          <Route path="stats"      element={<Stats />} />
+          <Route path="profile"    element={<Profile />} />
+          <Route path="settings"   element={<Settings />} />
         </Route>
 
         {/* Catch-all */}

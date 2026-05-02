@@ -2,6 +2,19 @@ import axios from 'axios'
 
 const api = axios.create({ baseURL: '/api' })
 
+// Attach Bearer token from localStorage on every request
+api.interceptors.request.use(config => {
+  try {
+    const user = JSON.parse(localStorage.getItem('va_user'))
+    if (user?.token) {
+      config.headers.Authorization = `Bearer ${user.token}`
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return config
+})
+
 // ── Todos ─────────────────────────────────────────────────────────────────────
 export const getTodos    = (done)        => api.get('/todos', { params: done !== undefined ? { done } : {} })
 export const createTodo  = (title, priority) => api.post('/todos', { title, priority })

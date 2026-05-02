@@ -197,5 +197,3 @@ TOOL_MAP = {
     "update_todo": update_todo,
     "delete_todo": delete_todo,
 }
-
-
