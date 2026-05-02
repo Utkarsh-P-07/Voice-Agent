@@ -51,7 +51,7 @@ _DEFAULT_USER = "default"
 # PUBLIC API  (same signatures as before — agent tool calls work unchanged)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def add_todo(title: str, priority: str = "medium", user_id: str = _DEFAULT_USER) -> dict:
+def add_todo(title: str, priority: str = "medium", category: str = "general", user_id: str = _DEFAULT_USER) -> dict:
     """Add a new to-do item."""
     if _USE_MONGO:
         from backend.database import db_add_todo
@@ -63,6 +63,7 @@ def add_todo(title: str, priority: str = "medium", user_id: str = _DEFAULT_USER)
         "id":         str(uuid.uuid4())[:8],
         "title":      title,
         "priority":   priority,
+        "category":   category,
         "done":       False,
         "created_at": datetime.now().isoformat(),
     }

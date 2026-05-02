@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Plus, Search, CheckCircle2, Circle, Trash2 } from 'lucide-react'
-import { getTodos, createTodo, updateTodo, deleteTodo } from '../api'
+import { getTodos, updateTodo, deleteTodo } from '../api'
 import clsx from 'clsx'
+import AddTaskModal from '../components/AddTaskModal'
 
 const FILTERS = ['All', 'Pending', 'Done', 'High', 'Medium', 'Low']
 
@@ -55,23 +56,13 @@ export default function Todos() {
   const [todos,    setTodos]    = useState([])
   const [filter,   setFilter]   = useState('All')
   const [search,   setSearch]   = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [form,     setForm]     = useState({ title: '', priority: 'medium' })
+  const [modalOpen, setModalOpen] = useState(false)
 
   async function load() {
     const { data } = await getTodos()
     setTodos(data.todos)
   }
   useEffect(() => { load() }, [])
-
-  async function handleAdd(e) {
-    e.preventDefault()
-    if (!form.title.trim()) return
-    await createTodo(form.title.trim(), form.priority)
-    setForm({ title: '', priority: 'medium' })
-    setShowForm(false)
-    load()
-  }
 
   const visible = todos.filter(t => {
     if (filter === 'Pending' && t.done)  return false
@@ -84,32 +75,23 @@ export default function Todos() {
 
   return (
     <div className="p-7 max-w-3xl">
+      {/* Add Task Modal */}
+      <AddTaskModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={load}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between mb-7">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900">My Tasks</h1>
           <p className="text-sm text-gray-400 mt-1">{todos.length} total · {todos.filter(t=>t.done).length} completed</p>
         </div>
-        <button onClick={() => setShowForm(v => !v)} className="btn-accent">
+        <button onClick={() => setModalOpen(true)} className="btn-accent">
           <Plus size={16} /> Add Task
         </button>
       </div>
-
-      {/* Add form */}
-      {showForm && (
-        <form onSubmit={handleAdd} className="neu-card p-5 mb-6 flex gap-3 items-center">
-          <input autoFocus className="neu-input flex-1" placeholder="What needs to be done?"
-            value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-          <select className="neu-input w-32" value={form.priority}
-            onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-          </select>
-          <button type="submit" className="btn-accent">Save</button>
-          <button type="button" onClick={() => setShowForm(false)} className="btn-ghost">Cancel</button>
-        </form>
-      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-4">

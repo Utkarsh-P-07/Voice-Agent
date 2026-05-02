@@ -17,7 +17,7 @@ api.interceptors.request.use(config => {
 
 // ── Todos ─────────────────────────────────────────────────────────────────────
 export const getTodos    = (done)        => api.get('/todos', { params: done !== undefined ? { done } : {} })
-export const createTodo  = (title, priority) => api.post('/todos', { title, priority })
+export const createTodo  = (title, priority, category = 'general') => api.post('/todos', { title, priority, category })
 export const updateTodo  = (id, patch)   => api.patch(`/todos/${id}`, patch)
 export const deleteTodo  = (id)          => api.delete(`/todos/${id}`)
 

@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Plus, Trash2, Tag } from 'lucide-react'
 import { getTodos, createTodo, deleteTodo, updateTodo } from '../api'
+import NeuSelect from '../components/NeuSelect'
+
+const PRIORITY_OPTS = [
+  { value: 'low',    label: 'Low',    dot: 'bg-green-400' },
+  { value: 'medium', label: 'Medium', dot: 'bg-amber-400'  },
+  { value: 'high',   label: 'High',   dot: 'bg-orange-500' },
+]
 
 // Built-in categories with colours
 const DEFAULT_CATS = [
@@ -123,18 +130,17 @@ export default function Categories() {
           </button>
         </div>
 
-        {/* Add form */}
         {adding && (
           <form onSubmit={handleAdd} className="flex gap-3 mb-5 items-center">
             <input autoFocus className="neu-input flex-1 text-sm"
               placeholder={`New ${activeCat?.label.toLowerCase()} task…`}
               value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-            <select className="neu-input w-28 text-sm" value={form.priority}
-              onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
+            <NeuSelect
+              value={form.priority}
+              onChange={v => setForm(f => ({ ...f, priority: v }))}
+              options={PRIORITY_OPTS}
+              className="w-32"
+            />
             <button type="submit" className="btn-accent text-xs px-3 py-2">Save</button>
             <button type="button" onClick={() => setAdding(false)} className="btn-ghost text-xs">✕</button>
           </form>

@@ -2,6 +2,14 @@ import { useEffect, useState } from 'react'
 import { Plus, Brain } from 'lucide-react'
 import { getMemories, createMemory } from '../api'
 import clsx from 'clsx'
+import NeuSelect from '../components/NeuSelect'
+
+const CATEGORY_OPTS = [
+  { value: 'preference', label: 'Preference', dot: 'bg-purple-400' },
+  { value: 'event',      label: 'Event',      dot: 'bg-cyan-400'   },
+  { value: 'goal',       label: 'Goal',       dot: 'bg-orange-400' },
+  { value: 'general',    label: 'General',    dot: 'bg-gray-400'   },
+]
 
 const CATS = ['All', 'preference', 'event', 'goal', 'general']
 const CAT_STYLE = {
@@ -65,13 +73,12 @@ export default function Memory() {
             placeholder="What should I remember?"
             value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} />
           <div className="flex gap-3 items-center">
-            <select className="neu-input w-40" value={form.category}
-              onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
-              <option value="preference">Preference</option>
-              <option value="event">Event</option>
-              <option value="goal">Goal</option>
-              <option value="general">General</option>
-            </select>
+            <NeuSelect
+              value={form.category}
+              onChange={v => setForm(f => ({ ...f, category: v }))}
+              options={CATEGORY_OPTS}
+              className="w-44"
+            />
             <button type="submit" className="btn-accent">Save</button>
             <button type="button" onClick={() => setShowForm(false)} className="btn-ghost">Cancel</button>
           </div>

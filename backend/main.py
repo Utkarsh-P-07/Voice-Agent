@@ -91,8 +91,9 @@ def _get_user_id(authorization: Optional[str] = Header(default=None)) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TodoCreate(BaseModel):
-    title: str
+    title:    str
     priority: str = "medium"
+    category: str = "general"
 
 class TodoUpdate(BaseModel):
     title:    Optional[str]  = None
@@ -140,7 +141,7 @@ async def get_todos(done: Optional[bool] = None, user_id: str = Depends(_get_use
 async def create_todo(body: TodoCreate, user_id: str = Depends(_get_user_id)):
     if body.priority not in ("low", "medium", "high"):
         raise HTTPException(400, "priority must be low, medium, or high")
-    return add_todo(body.title, body.priority, user_id=user_id)
+    return add_todo(body.title, body.priority, category=body.category, user_id=user_id)
 
 @app.patch("/api/todos/{todo_id}")
 async def patch_todo(todo_id: str, body: TodoUpdate, user_id: str = Depends(_get_user_id)):
