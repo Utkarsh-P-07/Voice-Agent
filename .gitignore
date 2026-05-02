@@ -1,13 +1,12 @@
 # ── Secrets ───────────────────────────────────────────────────────────────────
 .env
 
-# ── Data files (local JSON fallback) ─────────────────────────────────────────
-data/todos.json
-data/memory.json
-data/conversation.json
+# ── Runtime data (JSON fallback) ──────────────────────────────────────────────
+data/
 
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 *.pyd
@@ -15,6 +14,7 @@ __pycache__/
 .venv/
 venv/
 env/
+.Python
 
 # ── Node / Frontend ───────────────────────────────────────────────────────────
 frontend/node_modules/

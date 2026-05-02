@@ -12,6 +12,7 @@ from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "core"))   # core/ on path so imports work
 
 from dotenv import load_dotenv
 load_dotenv(ROOT / ".env")
@@ -22,10 +23,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
 import uvicorn
 
-from tools  import add_todo, list_todos, update_todo, delete_todo
-from memory import save_memory, recall_memories, _load as load_memories_sync, get_memory_context
-from agent  import run_agent_turn
-from oauth  import router as oauth_router, verify_token
+from core.tools  import add_todo, list_todos, update_todo, delete_todo
+from core.memory import save_memory, recall_memories, _load as load_memories_sync, get_memory_context
+from core.agent  import run_agent_turn
+from oauth       import router as oauth_router, verify_token
 
 from groq import Groq
 
@@ -56,7 +57,7 @@ async def startup():
     mongo_uri = os.getenv("MONGODB_URI", "")
     if mongo_uri:
         try:
-            from database import init_indexes, ping
+            from backend.database import init_indexes, ping
             ok = await ping()
             if ok:
                 await init_indexes()
@@ -115,7 +116,7 @@ async def health():
     mongo_ok  = False
     if mongo_uri:
         try:
-            from database import ping
+            from backend.database import ping
             mongo_ok = await ping()
         except Exception:
             pass
@@ -176,9 +177,9 @@ async def create_memory(body: MemoryCreate, user_id: str = Depends(_get_user_id)
 async def clear_memories_endpoint(user_id: str = Depends(_get_user_id)):
     mongo_uri = os.getenv("MONGODB_URI", "")
     if mongo_uri:
-        from database import db_clear_memories
+        from backend.database import db_clear_memories
         return await db_clear_memories(user_id)
-    from memory import MEMORY_FILE
+    from core.memory import MEMORY_FILE
     if MEMORY_FILE.exists():
         MEMORY_FILE.write_text("[]", encoding="utf-8")
     return {"status": "cleared"}
@@ -191,7 +192,7 @@ async def clear_memories_endpoint(user_id: str = Depends(_get_user_id)):
 async def get_conversation(user_id: str = Depends(_get_user_id)):
     mongo_uri = os.getenv("MONGODB_URI", "")
     if mongo_uri:
-        from database import db_load_conversation
+        from backend.database import db_load_conversation
         msgs = await db_load_conversation(user_id)
     else:
         msgs = _load_json_conversation()
@@ -202,7 +203,7 @@ async def get_conversation(user_id: str = Depends(_get_user_id)):
 async def clear_conversation_endpoint(user_id: str = Depends(_get_user_id)):
     mongo_uri = os.getenv("MONGODB_URI", "")
     if mongo_uri:
-        from database import db_clear_conversation
+        from backend.database import db_clear_conversation
         return await db_clear_conversation(user_id)
     _save_json_conversation([])
     return {"status": "cleared"}
@@ -339,13 +340,13 @@ def _save_json_conversation(conv: list[dict]) -> None:
 
 async def _load_conv(user_id: str) -> list[dict]:
     if os.getenv("MONGODB_URI"):
-        from database import db_load_conversation
+        from backend.database import db_load_conversation
         return await db_load_conversation(user_id)
     return _load_json_conversation()
 
 async def _save_conv(user_id: str, conv: list[dict]) -> None:
     if os.getenv("MONGODB_URI"):
-        from database import db_save_conversation
+        from backend.database import db_save_conversation
         await db_save_conversation(user_id, conv)
     else:
         _save_json_conversation(conv)
@@ -355,3 +356,4 @@ async def _save_conv(user_id: str, conv: list[dict]) -> None:
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True,
                 reload_dirs=[str(Path(__file__).parent)])
+

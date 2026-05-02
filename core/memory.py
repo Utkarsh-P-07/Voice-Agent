@@ -27,7 +27,7 @@ def _run(coro):
         return asyncio.run(coro)
 
 # ── JSON fallback ─────────────────────────────────────────────────────────────
-MEMORY_FILE  = Path(__file__).parent / "data" / "memory.json"
+MEMORY_FILE  = Path(__file__).parent.parent / "data" / "memory.json"
 MAX_MEMORIES = 50
 _DEFAULT_USER = "default"
 

@@ -1,15 +1,13 @@
-
+﻿
 # -*- coding: utf-8 -*-
 """
-Voice Todo Agent — Full Dashboard UI
-Dark sidebar + multi-page light dashboard matching the reference design.
-
-Pages: Dashboard · Todos · Memory · Stats · Profile · Settings
-Run:   python ui.py
+Voice Todo Agent — Full Dashboard UI (tkinter desktop)
+Run:   python desktop/ui.py
 """
 import json
 import math
 import os
+import sys
 import threading
 import time
 import tkinter as tk
@@ -17,8 +15,12 @@ from datetime import datetime
 from pathlib import Path
 from tkinter import font as tkfont, messagebox, simpledialog
 
-from dotenv import load_dotenv
+# Project root on path so core/ imports work
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
+from dotenv import load_dotenv
+load_dotenv(ROOT / ".env")
 load_dotenv()
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -447,14 +449,14 @@ class App(tk.Tk):
         del_btn.bind("<Button-1>", lambda e, t=todo: self._delete_todo(t))
 
     def _toggle_todo(self, todo: dict):
-        from tools import update_todo
+        from core.tools import update_todo
         update_todo(todo["id"], done=not todo.get("done", False))
         self._refresh_todos()
 
     def _delete_todo(self, todo: dict):
         if messagebox.askyesno("Delete Task",
                                f"Delete \"{todo['title']}\"?"):
-            from tools import delete_todo
+            from core.tools import delete_todo
             delete_todo(todo["id"])
             self._refresh_todos()
 
@@ -467,7 +469,7 @@ class App(tk.Tk):
         priority = priority.strip().lower() if priority else "medium"
         if priority not in ("low", "medium", "high"):
             priority = "medium"
-        from tools import add_todo
+        from core.tools import add_todo
         add_todo(title, priority)
         self._refresh_todos()
 
@@ -525,7 +527,7 @@ class App(tk.Tk):
         cat = cat.strip().lower() if cat else "general"
         if cat not in ("preference", "event", "goal", "general"):
             cat = "general"
-        from memory import save_memory
+        from core.memory import save_memory
         save_memory(content, cat)
         self._refresh_memory()
 
@@ -708,8 +710,8 @@ class App(tk.Tk):
                  bg=CARD_BG, fg=TEXT_LIGHT, font=self._f(9)).pack(anchor="w", pady=(4, 0))
 
         # Stats summary
-        from tools import list_todos
-        from memory import _load as load_mem
+        from core.tools import list_todos
+        from core.memory import _load as load_mem
         todos = list_todos()["todos"]
         mems  = load_mem()
         done  = sum(1 for t in todos if t["done"])
@@ -790,7 +792,7 @@ class App(tk.Tk):
         data_card.pack(fill="x", pady=(0, 14))
         tk.Label(data_card, text="💾  Data Files", bg=CARD_BG, fg=TEXT_DARK,
                  font=self._f(11, bold=True)).pack(anchor="w")
-        data_dir = Path(__file__).parent / "data"
+        data_dir = Path(__file__).parent.parent / "data"
         for fname in ("todos.json", "memory.json", "conversation.json"):
             fpath = data_dir / fname
             exists = "✓" if fpath.exists() else "✗"
@@ -820,14 +822,14 @@ class App(tk.Tk):
 
     def _clear_todos(self):
         if messagebox.askyesno("Clear Todos", "Delete ALL todos? This cannot be undone."):
-            from tools import TODO_FILE
+            from core.tools import TODO_FILE
             if TODO_FILE.exists():
                 TODO_FILE.write_text("[]")
             self._refresh_todos()
 
     def _clear_memories(self):
         if messagebox.askyesno("Clear Memories", "Delete ALL memories? This cannot be undone."):
-            from memory import MEMORY_FILE
+            from core.memory import MEMORY_FILE
             if MEMORY_FILE.exists():
                 MEMORY_FILE.write_text("[]")
             self._refresh_memory()
@@ -948,7 +950,7 @@ class App(tk.Tk):
 
     def _record_and_send(self):
         try:
-            from voice import record_until_silence, transcribe
+            from core.voice import record_until_silence, transcribe
             audio = record_until_silence()
             self.after(0, self._set_status, "🔄 Transcribing…")
             client = self._get_client()
@@ -970,7 +972,7 @@ class App(tk.Tk):
     def _agent_call(self, text: str):
         self.after(0, self._set_status, "🤖 Thinking…")
         try:
-            from agent import run_agent_turn
+            from core.agent import run_agent_turn
             client = self._get_client()
             if not client:
                 return
@@ -986,7 +988,7 @@ class App(tk.Tk):
 
     def _speak(self, text: str):
         try:
-            from voice import speak
+            from core.voice import speak
             speak(text)
         except Exception:
             pass
@@ -1007,7 +1009,7 @@ class App(tk.Tk):
     # DATA REFRESH
     # =========================================================================
     def _refresh_todos(self):
-        from tools import list_todos
+        from core.tools import list_todos
         all_todos = list_todos()["todos"]
         total = len(all_todos)
         done  = sum(1 for t in all_todos if t["done"])
@@ -1075,7 +1077,7 @@ class App(tk.Tk):
     def _refresh_memory(self):
         if not hasattr(self, "_mem_inner"):
             return
-        from memory import _load as load_mem
+        from core.memory import _load as load_mem
         mems = load_mem()
         cat_filter = self._mem_filter.get() if hasattr(self, "_mem_filter") else "All"
         if cat_filter != "All":
@@ -1094,8 +1096,8 @@ class App(tk.Tk):
     def _refresh_stats(self):
         if not hasattr(self, "_stats_inner"):
             return
-        from tools import list_todos
-        from memory import _load as load_mem
+        from core.tools import list_todos
+        from core.memory import _load as load_mem
         todos = list_todos()["todos"]
         mems  = load_mem()
         self._build_stats_content(todos, mems)
@@ -1106,7 +1108,7 @@ class App(tk.Tk):
 
     # ── Persistence ───────────────────────────────────────────────────────────
     def _load_conversation(self):
-        f = Path(__file__).parent / "data" / "conversation.json"
+        f = Path(__file__).parent.parent / "data" / "conversation.json"
         if f.exists():
             try:
                 self._conversation = json.loads(f.read_text())
@@ -1114,7 +1116,7 @@ class App(tk.Tk):
                 self._conversation = []
 
     def _save_conversation(self):
-        f = Path(__file__).parent / "data" / "conversation.json"
+        f = Path(__file__).parent.parent / "data" / "conversation.json"
         f.parent.mkdir(exist_ok=True)
         f.write_text(json.dumps(
             [m for m in self._conversation if isinstance(m, dict)], indent=2))
@@ -1126,3 +1128,4 @@ class App(tk.Tk):
 if __name__ == "__main__":
     app = App()
     app.mainloop()
+

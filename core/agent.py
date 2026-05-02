@@ -4,8 +4,8 @@ Agent core — system prompt, function-calling loop, tool dispatch using Groq.
 import json
 from groq import Groq
 
-from tools import TOOL_SCHEMAS, TOOL_MAP
-from memory import MEMORY_TOOL_SCHEMAS, MEMORY_TOOL_MAP, get_memory_context
+from core.tools  import TOOL_SCHEMAS, TOOL_MAP
+from core.memory import MEMORY_TOOL_SCHEMAS, MEMORY_TOOL_MAP, get_memory_context
 
 ALL_TOOL_SCHEMAS = TOOL_SCHEMAS + MEMORY_TOOL_SCHEMAS
 ALL_TOOL_MAP = {**TOOL_MAP, **MEMORY_TOOL_MAP}

@@ -32,7 +32,8 @@ def _run(coro):
         return asyncio.run(coro)
 
 # ── JSON fallback (used when MONGODB_URI is not set) ─────────────────────────
-TODO_FILE = Path(__file__).parent / "data" / "todos.json"
+# data/ lives at project root (one level above core/)
+TODO_FILE = Path(__file__).parent.parent / "data" / "todos.json"
 
 def _json_load() -> list[dict]:
     if not TODO_FILE.exists():
@@ -196,3 +197,5 @@ TOOL_MAP = {
     "update_todo": update_todo,
     "delete_todo": delete_todo,
 }
+
+
