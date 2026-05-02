@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, #root { height: 100%; margin: 0; }
+  body {
+    font-family: 'Inter', 'SF Pro Display', 'Segoe UI', sans-serif;
+    background: #e8e8ed;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
+}
+
+@layer components {
+
+  /* ── Neumorphic card ─────────────────────────────────────────────────── */
+  .neu-card {
+    @apply bg-[#eef0f5] rounded-3xl;
+    box-shadow: 6px 6px 16px #d1d5db, -6px -6px 16px #ffffff;
+  }
+  .neu-card-sm {
+    @apply bg-[#eef0f5] rounded-2xl;
+    box-shadow: 4px 4px 10px #d1d5db, -4px -4px 10px #ffffff;
+  }
+  .neu-inset {
+    @apply bg-[#e8eaf0] rounded-2xl;
+    box-shadow: inset 3px 3px 8px #d1d5db, inset -3px -3px 8px #ffffff;
+  }
+
+  /* ── Glass card ──────────────────────────────────────────────────────── */
+  .glass {
+    background: rgba(255,255,255,0.65);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.8);
+    @apply rounded-3xl;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.07);
+  }
+  .glass-sm {
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.75);
+    @apply rounded-2xl;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+
+  /* ── Accent gradient button ──────────────────────────────────────────── */
+  .btn-accent {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold
+           text-white cursor-pointer select-none transition-all duration-200
+           hover:scale-[1.02] active:scale-[0.98];
+    background: linear-gradient(135deg, #f97316, #fb923c);
+    box-shadow: 0 4px 14px rgba(249,115,22,0.35);
+  }
+  .btn-accent:hover {
+    box-shadow: 0 6px 20px rgba(249,115,22,0.45);
+  }
+
+  /* ── Ghost button ────────────────────────────────────────────────────── */
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
+           text-gray-500 cursor-pointer select-none transition-all duration-150
+           hover:text-gray-800 hover:bg-white/60;
+  }
+
+  /* ── Neu button (circular icon) ──────────────────────────────────────── */
+  .neu-btn {
+    @apply flex flex-col items-center gap-2 cursor-pointer select-none;
+  }
+  .neu-btn-circle {
+    @apply w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200
+           hover:scale-105 active:scale-95;
+    background: #eef0f5;
+    box-shadow: 4px 4px 10px #d1d5db, -4px -4px 10px #ffffff;
+  }
+  .neu-btn-circle:active {
+    box-shadow: inset 3px 3px 7px #d1d5db, inset -3px -3px 7px #ffffff;
+  }
+
+  /* ── Input ───────────────────────────────────────────────────────────── */
+  .neu-input {
+    @apply w-full text-sm text-gray-700 placeholder-gray-400 outline-none
+           rounded-2xl px-4 py-3 transition-all duration-200;
+    background: #eef0f5;
+    box-shadow: inset 3px 3px 7px #d1d5db, inset -3px -3px 7px #ffffff;
+    border: none;
+  }
+  .neu-input:focus {
+    box-shadow: inset 3px 3px 7px #d1d5db, inset -3px -3px 7px #ffffff,
+                0 0 0 2px rgba(249,115,22,0.25);
+  }
+
+  /* ── Sidebar nav item ────────────────────────────────────────────────── */
+  .nav-item {
+    @apply relative flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer
+           text-gray-500 transition-all duration-200 text-sm w-full select-none;
+  }
+  .nav-item:hover { @apply text-white; background: rgba(255,255,255,0.05); }
+  .nav-item.active { @apply text-white; }
+
+  /* ── Priority pill ───────────────────────────────────────────────────── */
+  .pill {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold;
+  }
+
+  /* ── Stat mini card ──────────────────────────────────────────────────── */
+  .stat-card {
+    @apply neu-card-sm p-5 flex flex-col gap-1;
+  }
+}
+
+/* ── Mic pulse ───────────────────────────────────────────────────────────── */
+@keyframes mic-pulse {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+.mic-pulse::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #f97316;
+  animation: mic-pulse 1.1s ease-out infinite;
+}
+
+/* ── Typing dots ─────────────────────────────────────────────────────────── */
+@keyframes bounce-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+  40%           { transform: translateY(-5px); opacity: 1; }
+}
+.typing-dot { animation: bounce-dot 1.3s infinite ease-in-out; }
+.typing-dot:nth-child(2) { animation-delay: 0.18s; }
+.typing-dot:nth-child(3) { animation-delay: 0.36s; }
+
+/* ── Donut SVG ───────────────────────────────────────────────────────────── */
+.donut-ring { transform: rotate(-90deg); transform-origin: 50% 50%; }
+
+/* ── Smooth hover lift ───────────────────────────────────────────────────── */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 8px 8px 20px #d1d5db, -8px -8px 20px #ffffff;
+}
+
+/* ── Gradient text ───────────────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #f97316, #fb923c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Accent glow ─────────────────────────────────────────────────────────── */
+.accent-glow {
+  box-shadow: 0 0 24px rgba(249,115,22,0.3);
+}
+
+/* ── Sidebar active pill ─────────────────────────────────────────────────── */
+.nav-active-pill {
+  background: linear-gradient(135deg, rgba(249,115,22,0.2), rgba(251,146,60,0.1));
+  border: 1px solid rgba(249,115,22,0.2);
+}
+
+/* ── Float animation (auth page orbs) ───────────────────────────────────── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(-12px) scale(1.03); }
+}
+
+/* ── Fade-in-up (auth form) ──────────────────────────────────────────────── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up {
+  animation: fade-in-up 0.5s ease forwards;
+}
