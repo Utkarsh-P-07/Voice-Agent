@@ -51,13 +51,22 @@ export function AuthProvider({ children }) {
     localStorage.setItem('va_user', JSON.stringify(u))
   }
 
+  /** Merge partial updates into the stored user (e.g. after email/contact change) */
+  function updateUser(patch) {
+    setUser(prev => {
+      const updated = { ...prev, ...patch }
+      localStorage.setItem('va_user', JSON.stringify(updated))
+      return updated
+    })
+  }
+
   // Redirect to backend OAuth endpoint
   function oauthRedirect(provider) {
     window.location.href = `http://localhost:8000/auth/${provider}`
   }
 
   return (
-    <AuthContext.Provider value={{ user, signIn, signUp, signOut, loginWithToken, oauthRedirect }}>
+    <AuthContext.Provider value={{ user, signIn, signUp, signOut, loginWithToken, oauthRedirect, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

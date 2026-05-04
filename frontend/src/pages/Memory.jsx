@@ -56,7 +56,7 @@ export default function Memory() {
   }
 
   return (
-    <div className="p-7 max-w-3xl">
+    <div className="p-7">
       <div className="flex items-center justify-between mb-7">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900">Memory Bank</h1>

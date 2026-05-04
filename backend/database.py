@@ -291,3 +291,38 @@ async def db_create_user(name: str, email: str, password_hash: str) -> dict:
     }
     await db.users.insert_one(doc)
     return _clean(doc)
+
+
+async def db_update_user_field(current_email: str, field: str, new_value: str) -> dict:
+    """
+    Update a single verified field (email or contact) on a user document.
+    For email changes the document is re-keyed to the new address.
+    Returns the updated user document.
+    """
+    db = get_db()
+
+    if field == "email":
+        # Make sure the new email isn't already taken
+        existing = await db.users.find_one({"email": new_value})
+        if existing:
+            from fastapi import HTTPException
+            raise HTTPException(409, "That email address is already in use.")
+        result = await db.users.find_one_and_update(
+            {"email": current_email},
+            {"$set": {"email": new_value, "updated_at": _now()}},
+            return_document=True,
+        )
+    elif field == "contact":
+        result = await db.users.find_one_and_update(
+            {"email": current_email},
+            {"$set": {"contact": new_value, "updated_at": _now()}},
+            return_document=True,
+        )
+    else:
+        from fastapi import HTTPException
+        raise HTTPException(400, f"Unsupported field: {field}")
+
+    if result is None:
+        from fastapi import HTTPException
+        raise HTTPException(404, "User not found.")
+    return _clean(result)

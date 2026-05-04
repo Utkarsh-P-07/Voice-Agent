@@ -218,7 +218,7 @@ export default function Stats() {
 
   /* ── Render ── */
   return (
-    <div className="p-7 max-w-5xl space-y-7 pb-10">
+    <div className="p-7 space-y-7 pb-10">
 
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex items-end justify-between">

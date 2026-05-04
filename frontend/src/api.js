@@ -43,3 +43,9 @@ export const getStats = () => api.get('/stats')
 
 // ── Health ────────────────────────────────────────────────────────────────────
 export const getHealth = () => api.get('/health')
+
+// ── Profile OTP ───────────────────────────────────────────────────────────────
+export const requestOtp   = (field, new_value)       => api.post('/profile/request-otp', { field, new_value })
+export const verifyOtp    = (field, new_value, otp)  => api.post('/profile/verify-otp', { field, new_value, otp })
+export const applyChange  = (verified_token)         => api.post('/profile/apply-change', { verified_token })
+export const getProfileMe = ()                       => api.get('/profile/me')

@@ -131,7 +131,7 @@ export default function ChatPanel() {
   }
 
   return (
-    <aside className="w-[320px] flex-shrink-0 flex flex-col h-full bg-[#e8e8ed]">
+    <aside className="w-[320px] flex-shrink-0 flex flex-col h-full bg-[#e8e8ed] border-l border-gray-300/70">
 
       {/* Header */}
       <div className="px-5 pt-6 pb-4">
@@ -162,6 +162,30 @@ export default function ChatPanel() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-2">
         {messages.map((m, i) => <Bubble key={i} msg={m} />)}
+
+        {/* Suggested prompts — shown only when conversation is fresh */}
+        {messages.length <= 2 && !loading && (
+          <div className="mt-2 mb-4 flex flex-col flex-1">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2 px-1">Try asking…</p>
+            <div className="flex flex-col gap-2 flex-1">
+              {[
+                { icon: '✅', text: 'Add a high priority task: Review project plan' },
+                { icon: '📋', text: 'Show me my pending tasks' },
+                { icon: '🧠', text: 'Remember that I prefer morning meetings' },
+                { icon: '📊', text: 'How many tasks have I completed?' },
+              ].map(({ icon, text }) => (
+                <button key={text}
+                  onClick={() => { setInput(text) }}
+                  className="flex items-center gap-2.5 w-full text-left px-3 py-3 rounded-2xl text-xs text-gray-600 font-medium transition-all hover:scale-[1.01] active:scale-[0.99] flex-1"
+                  style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+                  <span className="text-base leading-none flex-shrink-0">{icon}</span>
+                  <span className="leading-snug">{text}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {loading && (
           <div className="flex gap-2.5 mb-4">
             <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center flex-shrink-0">

@@ -107,7 +107,7 @@ export default function Sidebar() {
               <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/10">
                 <UserCog size={14} />
               </div>
-              Edit Profile
+              Profile
             </button>
 
             <div className="h-px mx-3" style={{ background: 'rgba(255,255,255,0.07)' }} />

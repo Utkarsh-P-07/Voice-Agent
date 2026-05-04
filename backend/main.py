@@ -353,6 +353,178 @@ async def _save_conv(user_id: str, conv: list[dict]) -> None:
         _save_json_conversation(conv)
 
 # ─────────────────────────────────────────────────────────────────────────────
+# PROFILE OTP — email / contact change verification
+# ─────────────────────────────────────────────────────────────────────────────
+import random
+import smtplib
+import time
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+# In-memory OTP store: { "email:field": { otp, expires, verified_token } }
+_otp_store: dict = {}
+
+OTP_TTL     = 10 * 60          # 10 minutes
+TOKEN_TTL   = 5  * 60          # 5 minutes to use the verified token
+SMTP_HOST   = os.getenv("SMTP_HOST",  "smtp.gmail.com")
+SMTP_PORT   = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER   = os.getenv("SMTP_USER",  "")
+SMTP_PASS   = os.getenv("SMTP_PASS",  "")
+SMTP_FROM   = os.getenv("SMTP_FROM",  SMTP_USER)
+
+
+class OtpRequest(BaseModel):
+    field: str          # "email" or "contact"
+    new_value: str      # the new email / phone the user wants to set
+
+
+class OtpVerify(BaseModel):
+    field: str
+    new_value: str
+    otp: str
+
+
+def _send_otp_email(to_email: str, otp: str, field: str) -> None:
+    """Send OTP via SMTP. Raises if SMTP not configured."""
+    if not SMTP_USER or not SMTP_PASS:
+        raise HTTPException(503, "SMTP not configured. Add SMTP_USER and SMTP_PASS to .env")
+
+    subject = f"Your verification code — {field.title()} change"
+    body    = (
+        f"Hi,\n\n"
+        f"Your one-time verification code to change your {field} is:\n\n"
+        f"  {otp}\n\n"
+        f"This code expires in 10 minutes. If you did not request this, ignore this email.\n\n"
+        f"— Voice Agent"
+    )
+    msg = MIMEMultipart()
+    msg["From"]    = SMTP_FROM
+    msg["To"]      = to_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.ehlo()
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASS)
+        server.sendmail(SMTP_FROM, to_email, msg.as_string())
+
+
+@app.post("/api/profile/request-otp")
+async def request_otp(body: OtpRequest, user_id: str = Depends(_get_user_id)):
+    if body.field not in ("email", "contact"):
+        raise HTTPException(400, "field must be 'email' or 'contact'")
+
+    otp = str(random.randint(100000, 999999))
+    key = f"{user_id}:{body.field}"
+    _otp_store[key] = {
+        "otp":     otp,
+        "value":   body.new_value,
+        "expires": time.time() + OTP_TTL,
+    }
+
+    # Determine where to send the OTP
+    # For email change → send to the NEW email so they prove they own it
+    # For contact change → send to the account email on file
+    send_to = body.new_value if body.field == "email" else user_id  # user_id is email
+
+    try:
+        _send_otp_email(send_to, otp, body.field)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Failed to send OTP email: {e}")
+
+    return {"status": "otp_sent", "message": f"OTP sent to {send_to}"}
+
+
+@app.post("/api/profile/verify-otp")
+async def verify_otp(body: OtpVerify, user_id: str = Depends(_get_user_id)):
+    if body.field not in ("email", "contact"):
+        raise HTTPException(400, "field must be 'email' or 'contact'")
+
+    key   = f"{user_id}:{body.field}"
+    entry = _otp_store.get(key)
+
+    if not entry:
+        raise HTTPException(400, "No OTP requested for this field")
+    if time.time() > entry["expires"]:
+        _otp_store.pop(key, None)
+        raise HTTPException(400, "OTP has expired. Please request a new one.")
+    if entry["otp"] != body.otp.strip():
+        raise HTTPException(400, "Incorrect OTP")
+    if entry["value"] != body.new_value:
+        raise HTTPException(400, "Value mismatch")
+
+    # Issue a short-lived verified token the frontend stores and sends with save
+    from oauth import create_token
+    verified_token = create_token({
+        "user_id":   user_id,
+        "field":     body.field,
+        "new_value": body.new_value,
+        "exp":       time.time() + TOKEN_TTL,
+    })
+    _otp_store.pop(key, None)
+    return {"status": "verified", "verified_token": verified_token}
+
+
+class ApplyChangeRequest(BaseModel):
+    verified_token: str
+
+
+@app.post("/api/profile/apply-change")
+async def apply_change(body: ApplyChangeRequest, user_id: str = Depends(_get_user_id)):
+    """
+    Apply a previously OTP-verified field change.
+    The verified_token must have been issued by /verify-otp and not yet expired.
+    """
+    from oauth import verify_token as _verify_token
+    payload = _verify_token(body.verified_token)
+    if not payload:
+        raise HTTPException(400, "Invalid or expired verified token")
+
+    token_user  = payload.get("user_id")
+    field       = payload.get("field")
+    new_value   = payload.get("new_value")
+    token_exp   = payload.get("exp", 0)
+
+    if token_user != user_id:
+        raise HTTPException(403, "Token does not belong to this user")
+    if field not in ("email", "contact"):
+        raise HTTPException(400, "Invalid field in token")
+    if time.time() > token_exp:
+        raise HTTPException(400, "Verified token has expired. Please restart the verification flow.")
+    if not new_value:
+        raise HTTPException(400, "Missing new_value in token")
+
+    mongo_uri = os.getenv("MONGODB_URI", "")
+    if mongo_uri:
+        from backend.database import db_update_user_field
+        updated = await db_update_user_field(user_id, field, new_value)
+    else:
+        # JSON-file fallback: nothing to persist server-side; client handles it
+        updated = {"email": new_value if field == "email" else user_id,
+                   "contact": new_value if field == "contact" else None}
+
+    return {
+        "status":    "updated",
+        "field":     field,
+        "new_value": new_value,
+        "user":      updated,
+    }
+
+
+@app.get("/api/profile/me")
+async def get_profile_me(user_id: str = Depends(_get_user_id)):
+    """Return the current user's stored profile fields (contact, etc.)."""
+    mongo_uri = os.getenv("MONGODB_URI", "")
+    if mongo_uri:
+        from backend.database import db_get_user_by_email
+        doc = await db_get_user_by_email(user_id)
+        if doc:
+            return {"contact": doc.get("contact", ""), "email": doc.get("email", user_id)}
+    return {"contact": "", "email": user_id}
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True,

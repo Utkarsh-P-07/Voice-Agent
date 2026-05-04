@@ -72,7 +72,7 @@ export default function Categories() {
   }
 
   return (
-    <div className="p-7 max-w-4xl">
+    <div className="p-7">
       <div className="mb-7">
         <h1 className="text-3xl font-extrabold text-gray-900">Categories</h1>
         <p className="text-sm text-gray-400 mt-1">Tasks organised by category</p>

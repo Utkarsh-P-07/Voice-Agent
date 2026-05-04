@@ -74,7 +74,7 @@ export default function Todos() {
   })
 
   return (
-    <div className="p-7 max-w-3xl">
+    <div className="p-7">
       {/* Add Task Modal */}
       <AddTaskModal
         open={modalOpen}
