@@ -57,6 +57,10 @@ async def init_indexes() -> None:
     await db.users.create_indexes([
         IndexModel([("email", ASCENDING)], unique=True),
     ])
+    await db.push_subscriptions.create_indexes([
+        IndexModel([("user_id", ASCENDING)]),
+        IndexModel([("endpoint", ASCENDING)], unique=True),
+    ])
 
 
 async def ping() -> bool:
@@ -326,3 +330,45 @@ async def db_update_user_field(current_email: str, field: str, new_value: str) -
         from fastapi import HTTPException
         raise HTTPException(404, "User not found.")
     return _clean(result)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# PUSH SUBSCRIPTIONS
+# ═════════════════════════════════════════════════════════════════════════════
+
+async def db_save_push_subscription(user_id: str, subscription: dict, device_name: str = "") -> dict:
+    """Upsert a push subscription (keyed by endpoint)."""
+    db  = get_db()
+    doc = {
+        "user_id":     user_id,
+        "endpoint":    subscription["endpoint"],
+        "keys":        subscription.get("keys", {}),
+        "device_name": device_name or "Unknown device",
+        "created_at":  _now(),
+        "last_used":   _now(),
+    }
+    await db.push_subscriptions.update_one(
+        {"endpoint": subscription["endpoint"]},
+        {"$set": doc},
+        upsert=True,
+    )
+    return {"status": "subscribed", "endpoint": subscription["endpoint"]}
+
+
+async def db_delete_push_subscription(user_id: str, endpoint: str) -> dict:
+    db = get_db()
+    r  = await db.push_subscriptions.delete_one({"user_id": user_id, "endpoint": endpoint})
+    return {"status": "unsubscribed" if r.deleted_count else "not_found"}
+
+
+async def db_list_push_subscriptions(user_id: str) -> list[dict]:
+    db     = get_db()
+    cursor = db.push_subscriptions.find({"user_id": user_id}).sort("created_at", ASCENDING)
+    return [_clean(s) async for s in cursor]
+
+
+async def db_get_all_subscriptions_for_user(user_id: str) -> list[dict]:
+    """Return raw subscription dicts (with keys) for sending pushes."""
+    db     = get_db()
+    cursor = db.push_subscriptions.find({"user_id": user_id})
+    return [_clean(s) async for s in cursor]

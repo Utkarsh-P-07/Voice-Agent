@@ -27,6 +27,7 @@ from core.tools  import add_todo, list_todos, update_todo, delete_todo
 from core.memory import save_memory, recall_memories, _load as load_memories_async, get_memory_context
 from core.agent  import run_agent_turn
 from oauth       import router as oauth_router, verify_token
+from push        import router as push_router
 
 from groq import Groq
 
@@ -50,6 +51,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(oauth_router)
+app.include_router(push_router)
 
 # ── Startup: init MongoDB indexes ─────────────────────────────────────────────
 @app.on_event("startup")
