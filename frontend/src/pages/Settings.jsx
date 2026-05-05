@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   CheckCircle2, XCircle, AlertTriangle, ChevronRight,
-  Bell, Shield, Mic, Database, Cpu, Palette,
+  Bell, BellOff, BellRing, Shield, Mic, Database, Cpu, Palette,
   Moon, Sun, Volume2, Trash2, RefreshCw, Info,
-  ToggleLeft, ToggleRight, Zap, Globe, Lock
+  ToggleLeft, ToggleRight, Zap, Globe, Lock,
+  Smartphone, Monitor, Tablet, Plus, Send
 } from 'lucide-react'
-import { getHealth, clearMemories, clearConversation, getTodos, deleteTodo } from '../api'
+import { getHealth, clearMemories, clearConversation, getTodos, deleteTodo,
+         getVapidKey, subscribePush, unsubscribePush, getPushSubscriptions, sendTestPush } from '../api'
 import { useAuth } from '../context/AuthContext'
 
 /* ── Toggle switch ─────────────────────────────────────────────────────── */
@@ -147,6 +149,141 @@ export default function Settings() {
     getHealth().then(r => setHealth(r.data)).catch(() => setHealth({ status: 'error' }))
   }, [])
 
+  // ── Push notification state ────────────────────────────────────────────────
+  const [pushPermission,  setPushPermission]  = useState(Notification?.permission ?? 'default')
+  const [pushSubscribed,  setPushSubscribed]  = useState(false)
+  const [pushDevices,     setPushDevices]     = useState([])
+  const [pushLoading,     setPushLoading]     = useState(false)
+  const [swReady,         setSwReady]         = useState(false)
+
+  // Check SW + existing subscription on mount
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    navigator.serviceWorker.ready.then(reg => {
+      setSwReady(true)
+      return reg.pushManager.getSubscription()
+    }).then(sub => {
+      setPushSubscribed(!!sub)
+    }).catch(() => {})
+    loadDevices()
+  }, [])
+
+  async function loadDevices() {
+    try {
+      const { data } = await getPushSubscriptions()
+      setPushDevices(data.subscriptions || [])
+    } catch { setPushDevices([]) }
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4)
+    const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+    const raw     = atob(base64)
+    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
+  }
+
+  function deviceLabel() {
+    const ua = navigator.userAgent
+    if (/iPhone|iPad/.test(ua))  return 'iPhone / iPad'
+    if (/Android/.test(ua))      return 'Android device'
+    if (/Macintosh/.test(ua))    return 'Mac — ' + (navigator.platform || 'Browser')
+    if (/Windows/.test(ua))      return 'Windows — ' + getBrowserName()
+    return getBrowserName()
+  }
+
+  function getBrowserName() {
+    const ua = navigator.userAgent
+    if (ua.includes('Chrome'))  return 'Chrome'
+    if (ua.includes('Firefox')) return 'Firefox'
+    if (ua.includes('Safari'))  return 'Safari'
+    if (ua.includes('Edge'))    return 'Edge'
+    return 'Browser'
+  }
+
+  function deviceIcon(name = '') {
+    const n = name.toLowerCase()
+    if (n.includes('iphone') || n.includes('android')) return Smartphone
+    if (n.includes('ipad') || n.includes('tablet'))    return Tablet
+    return Monitor
+  }
+
+  async function handleEnablePush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      flash('Push notifications are not supported in this browser.', 'error')
+      return
+    }
+    setPushLoading(true)
+    try {
+      // 1. Request permission
+      const perm = await Notification.requestPermission()
+      setPushPermission(perm)
+      if (perm !== 'granted') {
+        flash('Notification permission denied.', 'error')
+        return
+      }
+
+      // 2. Get VAPID public key
+      const { data: vapidData } = await getVapidKey()
+      const applicationServerKey = urlBase64ToUint8Array(vapidData.publicKey)
+
+      // 3. Subscribe via PushManager
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      })
+      const subJson = sub.toJSON()
+
+      // 4. Send to backend
+      await subscribePush(subJson, deviceLabel())
+      setPushSubscribed(true)
+      await loadDevices()
+      flash('Notifications enabled on this device! ✅')
+    } catch (err) {
+      flash('Failed to enable notifications: ' + err.message, 'error')
+    } finally {
+      setPushLoading(false)
+    }
+  }
+
+  async function handleDisablePush() {
+    setPushLoading(true)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      if (sub) {
+        await unsubscribePush(sub.endpoint)
+        await sub.unsubscribe()
+      }
+      setPushSubscribed(false)
+      await loadDevices()
+      flash('Notifications disabled on this device.')
+    } catch {
+      flash('Failed to disable notifications.', 'error')
+    } finally {
+      setPushLoading(false)
+    }
+  }
+
+  async function handleRemoveDevice(endpoint) {
+    try {
+      await unsubscribePush(endpoint)
+      await loadDevices()
+      flash('Device removed.')
+    } catch {
+      flash('Failed to remove device.', 'error')
+    }
+  }
+
+  async function handleTestPush() {
+    try {
+      await sendTestPush()
+      flash('Test notification sent!')
+    } catch {
+      flash('Failed to send test notification.', 'error')
+    }
+  }
+
   function flash(msg, type = 'success') {
     setToast({ msg, type })
     setTimeout(() => setToast({ msg: '', type: 'success' }), 3000)
@@ -215,6 +352,155 @@ export default function Settings() {
         </div>
       </SettingSection>
 
+      {/* ── Notifications & Devices ─────────────────────────────────── */}
+      <SettingSection title="Notifications & Devices">
+
+        {/* Permission / enable row */}
+        <div className="px-4 py-4">
+          <div className="flex items-center gap-4 mb-4">
+            <div className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 ${
+              pushPermission === 'granted' ? 'bg-gradient-to-br from-green-400 to-green-500'
+              : pushPermission === 'denied' ? 'bg-gradient-to-br from-red-400 to-red-500'
+              : 'bg-gradient-to-br from-blue-400 to-blue-500'
+            }`}>
+              {pushPermission === 'granted'
+                ? <BellRing size={16} className="text-white" />
+                : pushPermission === 'denied'
+                ? <BellOff  size={16} className="text-white" />
+                : <Bell     size={16} className="text-white" />
+              }
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-800">Push Notifications</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {pushPermission === 'granted' && pushSubscribed  ? 'Active on this device'
+                : pushPermission === 'granted' && !pushSubscribed ? 'Permission granted — not subscribed'
+                : pushPermission === 'denied'                     ? 'Blocked — enable in browser settings'
+                : 'Get alerts for reminders and tasks'}
+              </p>
+            </div>
+            {/* Status pill */}
+            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
+              pushPermission === 'granted' && pushSubscribed  ? 'bg-green-100 text-green-600'
+              : pushPermission === 'denied'                   ? 'bg-red-100 text-red-500'
+              : 'bg-gray-100 text-gray-500'
+            }`}>
+              {pushPermission === 'granted' && pushSubscribed  ? 'ON'
+              : pushPermission === 'denied'                    ? 'BLOCKED'
+              : 'OFF'}
+            </span>
+          </div>
+
+          {/* Action buttons */}
+          {pushPermission === 'denied' ? (
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-2xl text-xs text-amber-700"
+              style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
+              <AlertTriangle size={13} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <span>Notifications are blocked. Open your browser's site settings and allow notifications for this site, then reload.</span>
+            </div>
+          ) : !('serviceWorker' in navigator) ? (
+            <div className="px-3 py-2.5 rounded-2xl text-xs text-gray-500"
+              style={{ background: '#eef0f5', boxShadow: 'inset 2px 2px 5px #d1d5db' }}>
+              Push notifications are not supported in this browser.
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              {!pushSubscribed ? (
+                <button
+                  onClick={handleEnablePush}
+                  disabled={pushLoading}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white
+                             transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+                  style={{ background: 'linear-gradient(135deg,#f97316,#fb923c)', boxShadow: '0 4px 12px rgba(249,115,22,0.3)' }}
+                >
+                  {pushLoading
+                    ? <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    : <Bell size={14} />
+                  }
+                  Enable on this device
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleTestPush}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-gray-600
+                               transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    style={{ background: '#eef0f5', boxShadow: '3px 3px 8px #d1d5db, -3px -3px 8px #ffffff' }}
+                  >
+                    <Send size={13} />
+                    Test
+                  </button>
+                  <button
+                    onClick={handleDisablePush}
+                    disabled={pushLoading}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-red-500
+                               transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+                    style={{ background: '#eef0f5', boxShadow: '3px 3px 8px #d1d5db, -3px -3px 8px #ffffff' }}
+                  >
+                    {pushLoading
+                      ? <div className="w-4 h-4 rounded-full border-2 border-red-200 border-t-red-400 animate-spin" />
+                      : <BellOff size={13} />
+                    }
+                    Disable
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Registered devices list */}
+        {pushDevices.length > 0 && (
+          <div className="px-4 pb-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+              Registered devices ({pushDevices.length})
+            </p>
+            <div className="flex flex-col gap-2">
+              {pushDevices.map((dev, i) => {
+                const DevIcon = deviceIcon(dev.device_name)
+                return (
+                  <div key={i}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-2xl"
+                    style={{ background: '#eef0f5', boxShadow: 'inset 2px 2px 5px #d1d5db, inset -2px -2px 5px #ffffff' }}
+                  >
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'linear-gradient(135deg,#f97316,#fb923c)' }}>
+                      <DevIcon size={14} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-700 truncate">{dev.device_name || 'Unknown device'}</p>
+                      <p className="text-[10px] text-gray-400">Added {dev.created_at?.slice(0, 10)}</p>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveDevice(dev.endpoint)}
+                      className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-300
+                                 hover:text-red-400 hover:bg-red-50 transition-all flex-shrink-0"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Notification type toggles */}
+        <SettingRow
+          icon={BellRing} iconBg="bg-gradient-to-br from-orange-400 to-orange-500"
+          label="Task reminders" description="Notify when a task reminder is due"
+        >
+          <Toggle value={prefs.notifyReminders ?? true} onChange={v => setPref('notifyReminders', v)} />
+        </SettingRow>
+        <SettingRow
+          icon={CheckCircle2} iconBg="bg-gradient-to-br from-green-400 to-green-500"
+          label="Task completed" description="Confirm when a task is marked done"
+        >
+          <Toggle value={prefs.notifyDone ?? false} onChange={v => setPref('notifyDone', v)} />
+        </SettingRow>
+
+      </SettingSection>
+
       {/* ── Appearance ──────────────────────────────────────────────────── */}
       <SettingSection title="Appearance">
         <SettingRow
@@ -222,12 +508,6 @@ export default function Settings() {
           label="Theme" description="Light mode is currently active"
         >
           <span className="text-xs text-gray-400 font-medium">Light</span>
-        </SettingRow>
-        <SettingRow
-          icon={Bell} iconBg="bg-gradient-to-br from-blue-400 to-blue-500"
-          label="Notifications" description="Task reminders and updates"
-        >
-          <Toggle value={prefs.notifications ?? true} onChange={v => setPref('notifications', v)} />
         </SettingRow>
         <SettingRow
           icon={Zap} iconBg="bg-gradient-to-br from-purple-400 to-purple-500"
