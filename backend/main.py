@@ -24,7 +24,7 @@ from pydantic import BaseModel
 import uvicorn
 
 from core.tools  import add_todo, list_todos, update_todo, delete_todo
-from core.memory import save_memory, recall_memories, _load as load_memories_sync, get_memory_context
+from core.memory import save_memory, recall_memories, _load as load_memories_async, get_memory_context
 from core.agent  import run_agent_turn
 from oauth       import router as oauth_router, verify_token
 
@@ -135,17 +135,17 @@ async def health():
 
 @app.get("/api/todos")
 async def get_todos(done: Optional[bool] = None, user_id: str = Depends(_get_user_id)):
-    return list_todos(filter_done=done, user_id=user_id)
+    return await list_todos(filter_done=done, user_id=user_id)
 
 @app.post("/api/todos", status_code=201)
 async def create_todo(body: TodoCreate, user_id: str = Depends(_get_user_id)):
     if body.priority not in ("low", "medium", "high"):
         raise HTTPException(400, "priority must be low, medium, or high")
-    return add_todo(body.title, body.priority, category=body.category, user_id=user_id)
+    return await add_todo(body.title, body.priority, category=body.category, user_id=user_id)
 
 @app.patch("/api/todos/{todo_id}")
 async def patch_todo(todo_id: str, body: TodoUpdate, user_id: str = Depends(_get_user_id)):
-    result = update_todo(todo_id, title=body.title, priority=body.priority,
+    result = await update_todo(todo_id, title=body.title, priority=body.priority,
                          done=body.done, user_id=user_id)
     if result.get("status") == "not_found":
         raise HTTPException(404, f"Todo {todo_id} not found")
@@ -153,7 +153,7 @@ async def patch_todo(todo_id: str, body: TodoUpdate, user_id: str = Depends(_get
 
 @app.delete("/api/todos/{todo_id}")
 async def remove_todo(todo_id: str, user_id: str = Depends(_get_user_id)):
-    result = delete_todo(todo_id, user_id=user_id)
+    result = await delete_todo(todo_id, user_id=user_id)
     if result.get("status") == "not_found":
         raise HTTPException(404, f"Todo {todo_id} not found")
     return result
@@ -165,14 +165,14 @@ async def remove_todo(todo_id: str, user_id: str = Depends(_get_user_id)):
 @app.get("/api/memories")
 async def get_memories(query: str = "", category: str = "",
                        user_id: str = Depends(_get_user_id)):
-    return recall_memories(query=query, category=category, user_id=user_id)
+    return await recall_memories(query=query, category=category, user_id=user_id)
 
 @app.post("/api/memories", status_code=201)
 async def create_memory(body: MemoryCreate, user_id: str = Depends(_get_user_id)):
     valid_cats = ("preference", "event", "goal", "general")
     if body.category not in valid_cats:
         raise HTTPException(400, f"category must be one of {valid_cats}")
-    return save_memory(body.content, body.category, user_id=user_id)
+    return await save_memory(body.content, body.category, user_id=user_id)
 
 @app.delete("/api/memories")
 async def clear_memories_endpoint(user_id: str = Depends(_get_user_id)):
@@ -258,9 +258,9 @@ async def voice_chat(audio: UploadFile = File(...),
 
 @app.get("/api/stats")
 async def get_stats(user_id: str = Depends(_get_user_id)):
-    todos_result = list_todos(user_id=user_id)
+    todos_result = await list_todos(user_id=user_id)
     todos        = todos_result["todos"]
-    memories     = recall_memories(user_id=user_id)["memories"]
+    memories     = (await recall_memories(user_id=user_id))["memories"]
 
     total   = len(todos)
     done    = sum(1 for t in todos if t["done"])
