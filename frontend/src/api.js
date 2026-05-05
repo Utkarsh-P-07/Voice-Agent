@@ -49,3 +49,10 @@ export const requestOtp   = (field, new_value)       => api.post('/profile/reque
 export const verifyOtp    = (field, new_value, otp)  => api.post('/profile/verify-otp', { field, new_value, otp })
 export const applyChange  = (verified_token)         => api.post('/profile/apply-change', { verified_token })
 export const getProfileMe = ()                       => api.get('/profile/me')
+
+// ── Push Notifications ────────────────────────────────────────────────────────
+export const getVapidKey         = ()           => api.get('/push/vapid-public-key')
+export const subscribePush       = (sub, name)  => api.post('/push/subscribe', { ...sub, device_name: name })
+export const unsubscribePush     = (endpoint)   => api.delete('/push/unsubscribe', { data: { endpoint } })
+export const getPushSubscriptions = ()          => api.get('/push/subscriptions')
+export const sendTestPush        = ()           => api.post('/push/test')
