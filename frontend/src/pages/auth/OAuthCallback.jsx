@@ -31,7 +31,7 @@ export default function OAuthCallback() {
     }
 
     // Verify token with backend
-    fetch(`/api/auth/verify?token=${encodeURIComponent(token)}`)
+    fetch(`http://localhost:8000/auth/verify?token=${encodeURIComponent(token)}`)
       .then(r => {
         if (!r.ok) throw new Error('Token verification failed')
         return r.json()
