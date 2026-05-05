@@ -11,10 +11,11 @@ export default function SignIn() {
   const location     = useLocation()
   const from         = location.state?.from?.pathname || '/dashboard'
 
-  const [form,    setForm]    = useState({ email: '', password: '' })
-  const [showPw,  setShowPw]  = useState(false)
-  const [error,   setError]   = useState('')
-  const [loading, setLoading] = useState(false)
+  const [form,       setForm]       = useState({ email: '', password: '' })
+  const [showPw,     setShowPw]     = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
+  const [error,      setError]      = useState('')
+  const [loading,    setLoading]    = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -113,15 +114,21 @@ export default function SignIn() {
 
         {/* Remember me */}
         <label className="flex items-center gap-3 cursor-pointer select-none group">
-          <div className="relative">
-            <input type="checkbox" className="sr-only peer" />
-            <div className="w-5 h-5 rounded-lg peer-checked:bg-orange-500 transition-all
-                            flex items-center justify-center"
-              style={{ background: '#eef0f5', boxShadow: 'inset 2px 2px 5px #d1d5db, inset -2px -2px 5px #ffffff' }}>
-              <svg className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
+          <div
+            onClick={() => setRememberMe(v => !v)}
+            className="w-5 h-5 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer"
+            style={rememberMe
+              ? { background: '#f97316', boxShadow: '0 2px 8px rgba(249,115,22,0.4)' }
+              : { background: '#eef0f5', boxShadow: 'inset 2px 2px 5px #d1d5db, inset -2px -2px 5px #ffffff' }
+            }
+          >
+            <svg
+              className="w-3 h-3 text-white transition-opacity duration-200"
+              style={{ opacity: rememberMe ? 1 : 0 }}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
           </div>
           <span className="text-sm text-gray-500 group-hover:text-gray-700 transition-colors">Remember me</span>
         </label>
