@@ -5,7 +5,7 @@ import json
 from groq import Groq
 
 from core.tools  import TOOL_SCHEMAS, TOOL_MAP
-from core.memory import MEMORY_TOOL_SCHEMAS, MEMORY_TOOL_MAP, get_memory_context
+from core.memory import MEMORY_TOOL_SCHEMAS, MEMORY_TOOL_MAP, get_memory_context_sync
 
 ALL_TOOL_SCHEMAS = TOOL_SCHEMAS + MEMORY_TOOL_SCHEMAS
 ALL_TOOL_MAP = {**TOOL_MAP, **MEMORY_TOOL_MAP}
@@ -33,7 +33,7 @@ SYSTEM_PROMPT = """You are a helpful, friendly voice assistant that manages the 
 
 
 def build_system_prompt() -> str:
-    return SYSTEM_PROMPT.format(memory_context=get_memory_context())
+    return SYSTEM_PROMPT.format(memory_context=get_memory_context_sync())
 
 
 def dispatch_tool(name: str, arguments: str) -> str:
