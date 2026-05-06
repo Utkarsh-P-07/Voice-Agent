@@ -27,7 +27,7 @@ from core.tools  import add_todo, list_todos, update_todo, delete_todo
 from core.memory import save_memory, recall_memories, _load as load_memories_async, get_memory_context
 from core.agent  import run_agent_turn
 from oauth       import router as oauth_router, verify_token
-from push        import router as push_router
+from push        import router as push_router, device_router, send_push_to_user
 
 from groq import Groq
 
@@ -52,6 +52,7 @@ app.add_middleware(
 )
 app.include_router(oauth_router)
 app.include_router(push_router)
+app.include_router(device_router)
 
 # ── Startup: init MongoDB indexes ─────────────────────────────────────────────
 @app.on_event("startup")
@@ -143,7 +144,19 @@ async def get_todos(done: Optional[bool] = None, user_id: str = Depends(_get_use
 async def create_todo(body: TodoCreate, user_id: str = Depends(_get_user_id)):
     if body.priority not in ("low", "medium", "high"):
         raise HTTPException(400, "priority must be low, medium, or high")
-    return await add_todo(body.title, body.priority, category=body.category, user_id=user_id)
+    result = await add_todo(body.title, body.priority, category=body.category, user_id=user_id)
+    # Fire push to all linked devices
+    try:
+        priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(body.priority, "")
+        await send_push_to_user(
+            user_id,
+            title=f"New task added {priority_emoji}",
+            body=body.title,
+            data={"type": "new_task", "todo_id": result.get("item", {}).get("id", "")},
+        )
+    except Exception:
+        pass   # never block the response for a push failure
+    return result
 
 @app.patch("/api/todos/{todo_id}")
 async def patch_todo(todo_id: str, body: TodoUpdate, user_id: str = Depends(_get_user_id)):
