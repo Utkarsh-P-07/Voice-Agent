@@ -5,6 +5,7 @@ import Layout from './components/Layout'
 import SignIn from './pages/auth/SignIn'
 import SignUp from './pages/auth/SignUp'
 import OAuthCallback from './pages/auth/OAuthCallback'
+import DeviceLink from './pages/DeviceLink'
 import Dashboard from './pages/Dashboard'
 import Todos from './pages/Todos'
 import Calendar from './pages/Calendar'
@@ -18,10 +19,11 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
-        {/* Public auth routes */}
+        {/* Public routes */}
         <Route path="/signin"        element={<SignIn />} />
         <Route path="/signup"        element={<SignUp />} />
         <Route path="/auth/callback" element={<OAuthCallback />} />
+        <Route path="/device-link"   element={<DeviceLink />} />
 
         {/* Protected app routes */}
         <Route path="/" element={

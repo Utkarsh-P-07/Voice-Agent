@@ -56,3 +56,9 @@ export const subscribePush       = (sub, name)  => api.post('/push/subscribe', {
 export const unsubscribePush     = (endpoint)   => api.delete('/push/unsubscribe', { data: { endpoint } })
 export const getPushSubscriptions = ()          => api.get('/push/subscriptions')
 export const sendTestPush        = ()           => api.post('/push/test')
+
+// ── Device Linking ────────────────────────────────────────────────────────────
+export const generateQR    = ()         => api.post('/devices/generate-qr')
+export const claimDevice   = (body)     => axios.post('http://localhost:8000/api/devices/claim', body)
+export const listDevices   = ()         => api.get('/devices/list')
+export const removeDevice  = (endpoint) => api.delete(`/devices/${encodeURIComponent(endpoint)}`)
