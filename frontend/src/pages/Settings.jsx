@@ -1,13 +1,15 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   CheckCircle2, XCircle, AlertTriangle, ChevronRight,
   Bell, BellOff, BellRing, Shield, Mic, Database, Cpu, Palette,
   Moon, Sun, Volume2, Trash2, RefreshCw, Info,
   ToggleLeft, ToggleRight, Zap, Globe, Lock,
-  Smartphone, Monitor, Tablet, Plus, Send
+  Smartphone, Monitor, Tablet, Plus, Send, QrCode, X, Clock
 } from 'lucide-react'
+import QRCode from 'qrcode'
 import { getHealth, clearMemories, clearConversation, getTodos, deleteTodo,
-         getVapidKey, subscribePush, unsubscribePush, getPushSubscriptions, sendTestPush } from '../api'
+         getVapidKey, subscribePush, unsubscribePush, getPushSubscriptions, sendTestPush,
+         generateQR, listDevices, removeDevice } from '../api'
 import { useAuth } from '../context/AuthContext'
 
 /* ── Toggle switch ─────────────────────────────────────────────────────── */
@@ -128,6 +130,124 @@ function Toast({ msg, type = 'success' }) {
   )
 }
 
+/* ── QR Modal ──────────────────────────────────────────────────────────── */
+function QRModal({ open, onClose }) {
+  const canvasRef  = useRef(null)
+  const [link,     setLink]     = useState('')
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState('')
+  const [timeLeft, setTimeLeft] = useState(300)   // 5 min
+
+  useEffect(() => {
+    if (!open) return
+    setLoading(true)
+    setError('')
+    setTimeLeft(300)
+
+    generateQR()
+      .then(async ({ data }) => {
+        setLink(data.link)
+        setTimeLeft(data.expires_in)
+        // Draw QR onto canvas
+        await QRCode.toCanvas(canvasRef.current, data.link, {
+          width:            220,
+          margin:           2,
+          color: { dark: '#1c1c1e', light: '#eef0f5' },
+        })
+        setLoading(false)
+      })
+      .catch(() => {
+        setError('Failed to generate QR code.')
+        setLoading(false)
+      })
+  }, [open])
+
+  // Countdown timer
+  useEffect(() => {
+    if (!open || loading || error) return
+    const id = setInterval(() => setTimeLeft(t => {
+      if (t <= 1) { clearInterval(id); return 0 }
+      return t - 1
+    }), 1000)
+    return () => clearInterval(id)
+  }, [open, loading, error])
+
+  const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0')
+  const secs = String(timeLeft % 60).padStart(2, '0')
+
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(6px)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-xs rounded-3xl p-6 relative fade-in-up"
+        style={{ background: '#eef0f5', boxShadow: '20px 20px 50px #c8cad0, -20px -20px 50px #ffffff' }}>
+
+        {/* Close */}
+        <button onClick={onClose}
+          className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center
+                     text-gray-400 hover:text-gray-600 transition-colors"
+          style={{ background: '#e2e4ea', boxShadow: '2px 2px 5px #d1d5db, -2px -2px 5px #ffffff' }}>
+          <X size={13} />
+        </button>
+
+        {/* Title */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 rounded-2xl flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg,#f97316,#fb923c)', boxShadow: '0 4px 12px rgba(249,115,22,0.3)' }}>
+            <QrCode size={16} className="text-white" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-gray-900">Add a device</p>
+            <p className="text-xs text-gray-400">Scan with the other device's camera</p>
+          </div>
+        </div>
+
+        {/* QR area */}
+        <div className="flex flex-col items-center">
+          {loading && (
+            <div className="w-[220px] h-[220px] flex items-center justify-center rounded-2xl"
+              style={{ background: '#e2e4ea' }}>
+              <div className="w-8 h-8 rounded-full border-2 border-orange-200 border-t-orange-400 animate-spin" />
+            </div>
+          )}
+          {error && (
+            <div className="w-[220px] h-[220px] flex flex-col items-center justify-center gap-2 rounded-2xl"
+              style={{ background: '#e2e4ea' }}>
+              <XCircle size={28} className="text-red-400" />
+              <p className="text-xs text-red-400 text-center px-4">{error}</p>
+            </div>
+          )}
+          <canvas
+            ref={canvasRef}
+            className="rounded-2xl"
+            style={{ display: loading || error ? 'none' : 'block' }}
+          />
+        </div>
+
+        {/* Timer */}
+        {!loading && !error && (
+          <div className="flex items-center justify-center gap-1.5 mt-4">
+            <Clock size={12} className={timeLeft < 60 ? 'text-red-400' : 'text-gray-400'} />
+            <span className={`text-xs font-mono font-semibold ${timeLeft < 60 ? 'text-red-400' : 'text-gray-500'}`}>
+              {timeLeft > 0 ? `Expires in ${mins}:${secs}` : 'Expired — close and try again'}
+            </span>
+          </div>
+        )}
+
+        {/* Instructions */}
+        {!loading && !error && timeLeft > 0 && (
+          <div className="mt-4 px-3 py-2.5 rounded-2xl text-xs text-gray-500 leading-relaxed text-center"
+            style={{ background: '#e2e4ea', boxShadow: 'inset 2px 2px 5px #d1d5db' }}>
+            Open the camera app on the other device and point it at this QR code.
+            It will open a page to choose permissions and link automatically.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Settings() {
   const { user } = useAuth()
   const [health,  setHealth]  = useState(null)
@@ -155,6 +275,8 @@ export default function Settings() {
   const [pushDevices,     setPushDevices]     = useState([])
   const [pushLoading,     setPushLoading]     = useState(false)
   const [swReady,         setSwReady]         = useState(false)
+  const [qrOpen,          setQrOpen]          = useState(false)
+  const [linkedDevices,   setLinkedDevices]   = useState([])
 
   // Check SW + existing subscription on mount
   useEffect(() => {
@@ -173,6 +295,10 @@ export default function Settings() {
       const { data } = await getPushSubscriptions()
       setPushDevices(data.subscriptions || [])
     } catch { setPushDevices([]) }
+    try {
+      const { data } = await listDevices()
+      setLinkedDevices(data.devices || [])
+    } catch { setLinkedDevices([]) }
   }
 
   function urlBase64ToUint8Array(base64String) {
@@ -355,7 +481,7 @@ export default function Settings() {
       {/* ── Notifications & Devices ─────────────────────────────────── */}
       <SettingSection title="Notifications & Devices">
 
-        {/* Permission / enable row */}
+        {/* This device — push enable/disable */}
         <div className="px-4 py-4">
           <div className="flex items-center gap-4 mb-4">
             <div className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 ${
@@ -371,76 +497,54 @@ export default function Settings() {
               }
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-800">Push Notifications</p>
+              <p className="text-sm font-semibold text-gray-800">This device</p>
               <p className="text-xs text-gray-400 mt-0.5">
-                {pushPermission === 'granted' && pushSubscribed  ? 'Active on this device'
+                {pushPermission === 'granted' && pushSubscribed  ? 'Notifications active'
                 : pushPermission === 'granted' && !pushSubscribed ? 'Permission granted — not subscribed'
-                : pushPermission === 'denied'                     ? 'Blocked — enable in browser settings'
-                : 'Get alerts for reminders and tasks'}
+                : pushPermission === 'denied'                     ? 'Blocked in browser settings'
+                : 'Enable push notifications on this device'}
               </p>
             </div>
-            {/* Status pill */}
             <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
               pushPermission === 'granted' && pushSubscribed  ? 'bg-green-100 text-green-600'
               : pushPermission === 'denied'                   ? 'bg-red-100 text-red-500'
               : 'bg-gray-100 text-gray-500'
             }`}>
-              {pushPermission === 'granted' && pushSubscribed  ? 'ON'
-              : pushPermission === 'denied'                    ? 'BLOCKED'
-              : 'OFF'}
+              {pushPermission === 'granted' && pushSubscribed ? 'ON' : pushPermission === 'denied' ? 'BLOCKED' : 'OFF'}
             </span>
           </div>
 
-          {/* Action buttons */}
           {pushPermission === 'denied' ? (
             <div className="flex items-start gap-2 px-3 py-2.5 rounded-2xl text-xs text-amber-700"
               style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
               <AlertTriangle size={13} className="text-amber-500 flex-shrink-0 mt-0.5" />
-              <span>Notifications are blocked. Open your browser's site settings and allow notifications for this site, then reload.</span>
+              <span>Blocked. Open browser site settings, allow notifications, then reload.</span>
             </div>
           ) : !('serviceWorker' in navigator) ? (
-            <div className="px-3 py-2.5 rounded-2xl text-xs text-gray-500"
-              style={{ background: '#eef0f5', boxShadow: 'inset 2px 2px 5px #d1d5db' }}>
-              Push notifications are not supported in this browser.
-            </div>
+            <p className="text-xs text-gray-400 px-1">Push not supported in this browser.</p>
           ) : (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {!pushSubscribed ? (
-                <button
-                  onClick={handleEnablePush}
-                  disabled={pushLoading}
+                <button onClick={handleEnablePush} disabled={pushLoading}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white
                              transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
-                  style={{ background: 'linear-gradient(135deg,#f97316,#fb923c)', boxShadow: '0 4px 12px rgba(249,115,22,0.3)' }}
-                >
-                  {pushLoading
-                    ? <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                    : <Bell size={14} />
-                  }
-                  Enable on this device
+                  style={{ background: 'linear-gradient(135deg,#f97316,#fb923c)', boxShadow: '0 4px 12px rgba(249,115,22,0.3)' }}>
+                  {pushLoading ? <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> : <Bell size={14} />}
+                  Enable here
                 </button>
               ) : (
                 <>
-                  <button
-                    onClick={handleTestPush}
+                  <button onClick={handleTestPush}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-gray-600
                                transition-all hover:scale-[1.02] active:scale-[0.98]"
-                    style={{ background: '#eef0f5', boxShadow: '3px 3px 8px #d1d5db, -3px -3px 8px #ffffff' }}
-                  >
-                    <Send size={13} />
-                    Test
+                    style={{ background: '#eef0f5', boxShadow: '3px 3px 8px #d1d5db, -3px -3px 8px #ffffff' }}>
+                    <Send size={13} /> Test
                   </button>
-                  <button
-                    onClick={handleDisablePush}
-                    disabled={pushLoading}
+                  <button onClick={handleDisablePush} disabled={pushLoading}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-red-500
                                transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
-                    style={{ background: '#eef0f5', boxShadow: '3px 3px 8px #d1d5db, -3px -3px 8px #ffffff' }}
-                  >
-                    {pushLoading
-                      ? <div className="w-4 h-4 rounded-full border-2 border-red-200 border-t-red-400 animate-spin" />
-                      : <BellOff size={13} />
-                    }
+                    style={{ background: '#eef0f5', boxShadow: '3px 3px 8px #d1d5db, -3px -3px 8px #ffffff' }}>
+                    {pushLoading ? <div className="w-4 h-4 rounded-full border-2 border-red-200 border-t-red-400 animate-spin" /> : <BellOff size={13} />}
                     Disable
                   </button>
                 </>
@@ -449,33 +553,48 @@ export default function Settings() {
           )}
         </div>
 
-        {/* Registered devices list */}
-        {pushDevices.length > 0 && (
+        {/* ── Add Device button ──────────────────────────────────────── */}
+        <div className="px-4 pb-4">
+          <button
+            onClick={() => setQrOpen(true)}
+            className="w-full flex items-center justify-center gap-2.5 py-3 rounded-2xl
+                       text-sm font-semibold transition-all hover:scale-[1.01] active:scale-[0.99]"
+            style={{ background: 'linear-gradient(135deg,#f97316,#fb923c)', boxShadow: '0 4px 14px rgba(249,115,22,0.3)', color: '#fff' }}
+          >
+            <QrCode size={15} />
+            Add another device via QR
+          </button>
+        </div>
+
+        {/* ── Linked devices list ────────────────────────────────────── */}
+        {linkedDevices.length > 0 && (
           <div className="px-4 pb-4">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-              Registered devices ({pushDevices.length})
+              Linked devices ({linkedDevices.length})
             </p>
             <div className="flex flex-col gap-2">
-              {pushDevices.map((dev, i) => {
+              {linkedDevices.map((dev, i) => {
                 const DevIcon = deviceIcon(dev.device_name)
                 return (
                   <div key={i}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-2xl"
-                    style={{ background: '#eef0f5', boxShadow: 'inset 2px 2px 5px #d1d5db, inset -2px -2px 5px #ffffff' }}
-                  >
+                    style={{ background: '#eef0f5', boxShadow: 'inset 2px 2px 5px #d1d5db, inset -2px -2px 5px #ffffff' }}>
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
                       style={{ background: 'linear-gradient(135deg,#f97316,#fb923c)' }}>
                       <DevIcon size={14} className="text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-700 truncate">{dev.device_name || 'Unknown device'}</p>
-                      <p className="text-[10px] text-gray-400">Added {dev.created_at?.slice(0, 10)}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <p className="text-[10px] text-gray-400">Added {dev.created_at?.slice(0, 10)}</p>
+                        {dev.allow_calendar && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-500">Calendar</span>}
+                        {dev.allow_alarm    && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-500">Alarm</span>}
+                      </div>
                     </div>
                     <button
                       onClick={() => handleRemoveDevice(dev.endpoint)}
                       className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-300
-                                 hover:text-red-400 hover:bg-red-50 transition-all flex-shrink-0"
-                    >
+                                 hover:text-red-400 hover:bg-red-50 transition-all flex-shrink-0">
                       <Trash2 size={12} />
                     </button>
                   </div>
@@ -488,18 +607,21 @@ export default function Settings() {
         {/* Notification type toggles */}
         <SettingRow
           icon={BellRing} iconBg="bg-gradient-to-br from-orange-400 to-orange-500"
-          label="Task reminders" description="Notify when a task reminder is due"
+          label="Notify on new task" description="Push to all devices when a task is added"
         >
-          <Toggle value={prefs.notifyReminders ?? true} onChange={v => setPref('notifyReminders', v)} />
+          <Toggle value={prefs.notifyNewTask ?? true} onChange={v => setPref('notifyNewTask', v)} />
         </SettingRow>
         <SettingRow
           icon={CheckCircle2} iconBg="bg-gradient-to-br from-green-400 to-green-500"
-          label="Task completed" description="Confirm when a task is marked done"
+          label="Notify on task done" description="Confirm when a task is marked complete"
         >
           <Toggle value={prefs.notifyDone ?? false} onChange={v => setPref('notifyDone', v)} />
         </SettingRow>
 
       </SettingSection>
+
+      {/* QR Modal */}
+      <QRModal open={qrOpen} onClose={() => { setQrOpen(false); loadDevices() }} />
 
       {/* ── Appearance ──────────────────────────────────────────────────── */}
       <SettingSection title="Appearance">
