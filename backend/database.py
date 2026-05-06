@@ -61,6 +61,10 @@ async def init_indexes() -> None:
         IndexModel([("user_id", ASCENDING)]),
         IndexModel([("endpoint", ASCENDING)], unique=True),
     ])
+    await db.device_tokens.create_indexes([
+        IndexModel([("token", ASCENDING)], unique=True),
+        IndexModel([("expires_at", ASCENDING)]),
+    ])
 
 
 async def ping() -> bool:
@@ -372,3 +376,36 @@ async def db_get_all_subscriptions_for_user(user_id: str) -> list[dict]:
     db     = get_db()
     cursor = db.push_subscriptions.find({"user_id": user_id})
     return [_clean(s) async for s in cursor]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# DEVICE LINK TOKENS
+# ═════════════════════════════════════════════════════════════════════════════
+
+async def db_create_device_token(user_id: str, token: str, expires_at: str) -> dict:
+    db  = get_db()
+    doc = {
+        "user_id":    user_id,
+        "token":      token,
+        "expires_at": expires_at,
+        "claimed":    False,
+        "created_at": _now(),
+    }
+    await db.device_tokens.insert_one(doc)
+    return _clean(doc)
+
+
+async def db_claim_device_token(token: str) -> Optional[dict]:
+    """Return the token doc if valid & unclaimed, then mark claimed."""
+    db  = get_db()
+    doc = await db.device_tokens.find_one({"token": token, "claimed": False})
+    if not doc:
+        return None
+    # Mark claimed
+    await db.device_tokens.update_one({"token": token}, {"$set": {"claimed": True}})
+    return _clean(doc)
+
+
+async def db_cleanup_expired_tokens() -> None:
+    db = get_db()
+    await db.device_tokens.delete_many({"expires_at": {"$lt": _now()}})
